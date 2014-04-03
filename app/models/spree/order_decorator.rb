@@ -82,7 +82,7 @@ Spree::Order.class_eval do
     adjustments.store_credits.with_state(:closed).map &:finalize!
   end
   # consume users store credit once the order has completed.
-  register_update_hookconsume_users_credit
+  register_update_hook :consume_users_credit
 
   # ensure that user has sufficient credits to cover adjustments
   #
