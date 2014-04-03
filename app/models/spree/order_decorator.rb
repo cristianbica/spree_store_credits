@@ -64,24 +64,25 @@ Spree::Order.class_eval do
 
   def consume_users_credit
     return unless completed? and user.present?
-    credit_used = self.store_credit_amount
-
+    credits_to_be_consumed = adjustments.store_credits.with_state(:closed).sum(:amount).abs.to_f
+    return unless credits_to_be_consumed>0
     user.store_credits.each do |store_credit|
-      break if credit_used == 0
+      break if credits_to_be_consumed == 0
       if store_credit.remaining_amount > 0
-        if store_credit.remaining_amount > credit_used
-          store_credit.remaining_amount -= credit_used
+        if store_credit.remaining_amount > credits_to_be_consumed
+          store_credit.remaining_amount -= credits_to_be_consumed
           store_credit.save
-          credit_used = 0
+          credits_to_be_consumed = 0
         else
-          credit_used -= store_credit.remaining_amount
+          credits_to_be_consumed -= store_credit.remaining_amount
           store_credit.update_attribute(:remaining_amount, 0)
         end
       end
     end
+    adjustments.store_credits.with_state(:closed).map &:finalize!
   end
   # consume users store credit once the order has completed.
-  state_machine.after_transition :to => :complete,  :do => :consume_users_credit
+  register_update_hookconsume_users_credit
 
   # ensure that user has sufficient credits to cover adjustments
   #
